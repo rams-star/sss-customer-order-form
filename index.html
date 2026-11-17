@@ -287,8 +287,8 @@
                     `;
 
                     document.getElementById('orderForm').style.display = 'none';
-                    const whatsappUrl = `https://wa.me/61433949007?text=` + encodeURIComponent(summaryText);
-                    document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
+                    //const whatsappUrl = `https://wa.me/61433949007?text=` + encodeURIComponent(summaryText);
+                    //document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
                     document.getElementById('successScreen').style.display = 'block';
                 } else {
                     throw new Error(data.error || 'Unknown error');
