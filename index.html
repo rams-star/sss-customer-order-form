@@ -54,12 +54,13 @@
                 <span id="grandTotal">$0.00</span>
             </div>
 
-            <!-- PayID Payment Section -->
+            <!-- PayID Payment Section (QR Code Removed & Font Enlarged) -->
             <div class="payment-box">
-                <h4 style="margin:0 0 6px 0; color:#55a630;">PayID Payment Details</h4>
-                <p style="margin:0 0 10px 0; font-size:14px; color:#333;">Pay via PayID: <strong>0433949007</strong> (Name: <strong>Arthi Shivaram</strong>)</p>
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=payid:0433949007" alt="PayID QR" style="width:130px; height:130px; border-radius:8px;">
-                <p style="font-size:12px; color:#666; margin:8px 0 0 0;">Scan with your banking app to pay</p>
+                <h4 style="margin:0 0 8px 0; color:#55a630; font-size: 1.2rem;">PayID Payment Details</h4>
+                <p style="margin:0; font-size: 1.15rem; color:#333; line-height: 1.5;">
+                    Pay via PayID: <strong style="color:#000;">0433949007</strong><br>
+                    Name: <strong style="color:#000;">Arthi Sivaram</strong>
+                </p>
             </div>
 
             <button type="submit" class="submit-btn" id="submitBtn" style="margin-top:18px;">Submit Order</button>
@@ -189,77 +190,4 @@
         }
 
         function removeItemRow(btn) {
-            btn.closest('.item-box').remove();
-            document.querySelectorAll('.item-box').forEach((box, idx) => {
-                box.querySelector('.item-header span').textContent = `Item #${idx + 1}`;
-            });
-            calculateTotal();
-        }
-
-        function calculateTotal() {
-            let grandTotal = 0;
-            document.querySelectorAll('.item-box').forEach(box => {
-                const itemSelect = box.querySelector('.item-select');
-                const qty = Number(box.querySelector('.qty-input').value) || 0;
-                const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
-                const price = selectedOpt && selectedOpt.dataset.price ? Number(selectedOpt.dataset.price) : 0;
-                const sub = price * qty;
-                box.querySelector('.sub-display').value = `$${sub.toFixed(2)}`;
-                grandTotal += sub;
-            });
-            document.getElementById('grandTotal').textContent = `$${grandTotal.toFixed(2)}`;
-        }
-
-        document.getElementById('orderForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const items = [];
-            let summaryText = "New Order Received!\n\nCustomer: " + document.getElementById('customerName').value + "\nMobile: " + document.getElementById('customerMobile').value + "\n\nItems:\n";
-
-            document.querySelectorAll('.item-box').forEach(box => {
-                const itemSelect = box.querySelector('.item-select');
-                const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
-                if (itemSelect.value) {
-                    const qty = Number(box.querySelector('.qty-input').value);
-                    const price = Number(selectedOpt.dataset.price);
-                    items.push({ itemId: itemSelect.value, price: price, quantity: qty });
-                    summaryText += `- ${selectedOpt.text} (Qty: ${qty})\n`;
-                }
-            });
-
-            const totalAmount = document.getElementById('grandTotal').textContent;
-            summaryText += `\nTotal: ${totalAmount}\nPayment via PayID: 0433949007 (Arthi Shivaram)`;
-
-            const payload = {
-                customerName: document.getElementById('customerName').value.trim(),
-                customerMobile: document.getElementById('customerMobile').value.trim(),
-                items: items
-            };
-
-            document.getElementById('submitBtn').style.display = 'none';
-            document.getElementById('submittingMsg').style.display = 'block';
-
-            fetch(scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.result === 'success') {
-                    document.getElementById('orderForm').style.display = 'none';
-                    const whatsappUrl = `https://wa.me/?text=` + encodeURIComponent(summaryText);
-                    document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
-                    document.getElementById('successScreen').style.display = 'block';
-                } else {
-                    throw new Error(data.error || 'Unknown error');
-                }
-            })
-            .catch(err => {
-                alert('Error submitting order: ' + err.message);
-                document.getElementById('submitBtn').style.display = 'block';
-                document.getElementById('submittingMsg').style.display = 'none';
-            });
-        });
-    </script>
-</body>
-</html>
+            btn.closest('.item
