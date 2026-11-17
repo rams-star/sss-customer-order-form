@@ -22,7 +22,6 @@
         .total-bar { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #1b4332; padding: 12px 0; border-top: 2px solid #eee; border-bottom: 2px solid #eee; margin-bottom: 18px; }
         .submit-btn { background: #2d6a4f; color: white; border: none; padding: 14px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
         .submit-btn:hover { background: #1b4332; }
-        .payment-box { background: #fdfcdc; border: 1px solid #f1dca7; padding: 16px; border-radius: 10px; margin-top: 20px; text-align: center; }
         .status-msg { text-align: center; padding: 30px 10px; color: #444; font-size: 16px; line-height: 1.5; }
         .success-box { background: #d8f3dc; color: #1b4332; padding: 20px; border-radius: 10px; text-align: center; }
         .receipt-card { background: #ffffff; color: #333; text-align: left; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #b7e4c7; font-size: 14px; line-height: 1.6; }
@@ -73,3 +72,236 @@
             <p style="font-size: 13px; color: #2d6a4f; margin-bottom: 6px;">Optional: Send a copy directly to our WhatsApp</p>
             <a id="whatsappLink" href="#" target="_blank" class="whatsapp-btn">Send Order Details via WhatsApp</a>
             <button type="button" class="submit-btn" style="margin-top:12px; background:#6c757d;" onclick="location.reload()">Place Another Order</button>
+        </div>
+    </div>
+
+    <script>
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbziuk9f9wSi7o9mmLPAy9oVSG1VkOt6NKlmvRm81b9uVJzbYdDvDUKmLoDLzTEjJwo/exec';
+        
+        // Fallback menu in case Google Apps Script is unreachable or slow
+        let menuData = [
+            { id: "1", category: "Breakfast", name: "Benne (Butter) Dosa", price: 12.00 },
+            { id: "2", category: "Breakfast", name: "Poori and Baaji (Smashed Potato) (3 pieces)", price: 12.00 }
+        ];
+
+        function processServerData(data) {
+            document.getElementById('loader').style.display = 'none';
+
+            if (data && data.status === 'closed') {
+                const closedDiv = document.getElementById('closedMsg');
+                let formattedMsg = (data.message || "Online pre-orders are closed for now.")
+                    .replace('Arthi Shivaram', '<strong>Arthi Shivaram</strong>')
+                    .replace('0433 949 007', '<strong>0433 949 007</strong>');
+
+                closedDiv.innerHTML = formattedMsg;
+                closedDiv.style.display = 'block';
+                document.getElementById('orderForm').style.display = 'none';
+                return;
+            }
+
+            if (data && data.menu && data.menu.length > 0) {
+                menuData = data.menu;
+            }
+
+            document.getElementById('closedMsg').style.display = 'none';
+            document.getElementById('orderForm').style.display = 'block';
+            
+            if (document.getElementById('itemsContainer').children.length === 0) {
+                addItemRow();
+            } else {
+                updateAllDropdowns();
+            }
+        }
+
+        function forceOpenForm() {
+            processServerData({ status: 'open', menu: menuData });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            let hasLoaded = false;
+
+            // Show manual bypass button & enable fallback after 3 seconds
+            const timeoutId = setTimeout(() => {
+                if (!hasLoaded) {
+                    document.getElementById('bypassBtn').style.display = 'inline-block';
+                    // Auto-open with fallback data so user never gets stuck
+                    processServerData({ status: 'open', menu: menuData });
+                }
+            }, 3000);
+
+            fetch(scriptURL)
+                .then(res => res.json())
+                .then(data => {
+                    hasLoaded = true;
+                    clearTimeout(timeoutId);
+                    processServerData(data);
+                })
+                .catch(err => {
+                    console.error("Fetch error: ", err);
+                    clearTimeout(timeoutId);
+                    if (!hasLoaded) {
+                        processServerData({ status: 'open', menu: menuData });
+                    }
+                });
+        });
+
+        function updateAllDropdowns() {
+            document.querySelectorAll('.item-select').forEach(select => {
+                const currentVal = select.value;
+                let itemOptions = `<option value="">-- Select Menu Item --</option>`;
+                let categories = [...new Set(menuData.map(item => item.category))];
+                
+                categories.forEach(cat => {
+                    itemOptions += `<optgroup label="${cat}">`;
+                    menuData.filter(m => m.category === cat).forEach(item => {
+                        itemOptions += `<option value="${item.id}" data-price="${item.price}">${item.name} ($${item.price.toFixed(2)})</option>`;
+                    });
+                    itemOptions += `</optgroup>`;
+                });
+                select.innerHTML = itemOptions;
+                select.value = currentVal;
+            });
+        }
+
+        function addItemRow() {
+            const container = document.getElementById('itemsContainer');
+            const index = container.children.length + 1;
+            const div = document.createElement('div');
+            div.className = 'item-box';
+
+            let itemOptions = `<option value="">-- Select Menu Item --</option>`;
+            let categories = [...new Set(menuData.map(item => item.category))];
+            
+            categories.forEach(cat => {
+                itemOptions += `<optgroup label="${cat}">`;
+                menuData.filter(m => m.category === cat).forEach(item => {
+                    itemOptions += `<option value="${item.id}" data-price="${item.price}">${item.name} ($${item.price.toFixed(2)})</option>`;
+                });
+                itemOptions += `</optgroup>`;
+            });
+
+            div.innerHTML = `
+                <div class="item-header">
+                    <span>Item #${index}</span>
+                    ${index > 1 ? `<button type="button" class="remove-btn" onclick="removeItemRow(this)">Remove</button>` : ''}
+                </div>
+                <label>Item</label>
+                <select class="item-select" onchange="calculateTotal()" required>${itemOptions}</select>
+                <div class="row-split">
+                    <div>
+                        <label>Quantity</label>
+                        <input type="number" class="qty-input" min="1" value="1" oninput="calculateTotal()" required>
+                    </div>
+                    <div>
+                        <label>Amount ($)</label>
+                        <input type="text" class="sub-display" value="$0.00" readonly style="background:#eee; font-weight:bold;">
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeItemRow(btn) {
+            btn.closest('.item-box').remove();
+            document.querySelectorAll('.item-box').forEach((box, idx) => {
+                box.querySelector('.item-header span').textContent = `Item #${idx + 1}`;
+            });
+            calculateTotal();
+        }
+
+        function calculateTotal() {
+            let grandTotal = 0;
+            document.querySelectorAll('.item-box').forEach(box => {
+                const itemSelect = box.querySelector('.item-select');
+                const qty = Number(box.querySelector('.qty-input').value) || 0;
+                const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
+                const price = selectedOpt && selectedOpt.dataset.price ? Number(selectedOpt.dataset.price) : 0;
+                const sub = price * qty;
+                box.querySelector('.sub-display').value = `$${sub.toFixed(2)}`;
+                grandTotal += sub;
+            });
+            document.getElementById('grandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+        }
+
+        document.getElementById('orderForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const items = [];
+            const custName = document.getElementById('customerName').value.trim();
+            const custMobile = document.getElementById('customerMobile').value.trim();
+            const totalAmount = document.getElementById('grandTotal').textContent;
+
+            let summaryText = "New Order Received!\n\nCustomer: " + custName + "\nMobile: " + custMobile + "\n\nItems:\n";
+            let receiptItemsHtml = "";
+
+            document.querySelectorAll('.item-box').forEach(box => {
+                const itemSelect = box.querySelector('.item-select');
+                const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
+                if (itemSelect.value) {
+                    const qty = Number(box.querySelector('.qty-input').value);
+                    const price = Number(selectedOpt.dataset.price);
+                    const subTotal = (price * qty).toFixed(2);
+                    
+                    items.push({ itemId: itemSelect.value, price: price, quantity: qty });
+                    summaryText += `- ${selectedOpt.text} (Qty: ${qty})\n`;
+                    receiptItemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>${selectedOpt.text.split(' ($')[0]} &times; ${qty}</span>
+                        <span>$${subTotal}</span>
+                    </div>`;
+                }
+            });
+
+            summaryText += `\nTotal: ${totalAmount}\nPayment via PayID: 0433949007 (Arthi Shivaram)`;
+
+            const payload = {
+                customerName: custName,
+                customerMobile: custMobile,
+                items: items
+            };
+
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('submittingMsg').style.display = 'block';
+
+            fetch(scriptURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.result === 'success') {
+                    document.getElementById('receiptDetails').innerHTML = `
+                        <h4>Order Summary</h4>
+                        <div style="margin-bottom:8px;">
+                            <strong>Name:</strong> ${custName}<br>
+                            <strong>Mobile:</strong> ${custMobile}
+                        </div>
+                        <div style="border-top:1px solid #eee; padding-top:8px;">
+                            ${receiptItemsHtml}
+                        </div>
+                        <div class="receipt-total">
+                            <span>Total Paid / Due:</span>
+                            <span>${totalAmount}</span>
+                        </div>
+                        <div style="margin-top:12px; padding:10px; background:#fdfcdc; border:1px solid #f1dca7; border-radius:6px; text-align:center;">
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #000;">PayID: 0433949007</div>
+                            <div style="font-size: 0.95rem; color: #333; font-weight: 600;">Arthi Shivaram</div>
+                        </div>
+                    `;
+
+                    document.getElementById('orderForm').style.display = 'none';
+                    const whatsappUrl = `https://wa.me/61433949007?text=` + encodeURIComponent(summaryText);
+                    document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
+                    document.getElementById('successScreen').style.display = 'block';
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            })
+            .catch(err => {
+                alert('Error submitting order: ' + err.message);
+                document.getElementById('submitBtn').style.display = 'block';
+                document.getElementById('submittingMsg').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
