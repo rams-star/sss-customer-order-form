@@ -29,7 +29,6 @@
         .receipt-card h4 { margin: 0 0 8px 0; color: #1b4332; border-bottom: 1px solid #eee; padding-bottom: 6px; font-size: 16px; }
         .receipt-total { font-weight: bold; font-size: 16px; color: #1b4332; border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; }
         .whatsapp-btn { background: #25d366; color: white; text-decoration: none; display: block; padding: 13px; border-radius: 8px; font-weight: bold; margin-top: 12px; font-size: 15px; }
-        .payid-logo { height: 22px; vertical-align: middle; margin-right: 6px; }
     </style>
 </head>
 <body>
@@ -61,15 +60,12 @@
                 <span id="grandTotal">$0.00</span>
             </div>
 
-            <!-- PayID Payment Section -->
+            <!-- PayID Payment Section (Logo Removed) -->
             <div class="payment-box">
-                <div style="margin-bottom: 6px;">
-                    <img src="PayID.png" alt="PayID" class="payid-logo" style="height: 28px;">
-                </div>
                 <div style="font-size: 1.25rem; font-weight: bold; color: #000; letter-spacing: 0.5px;">
-                    0433949007
+                    PayID: 0433949007
                 </div>
-                <div style="font-size: 1.05rem; color: #333; margin-top: 2px; font-weight: 600;">
+                <div style="font-size: 1.05rem; color: #333; margin-top: 4px; font-weight: 600;">
                     Arthi Shivaram
                 </div>
             </div>
@@ -142,7 +138,6 @@
                 }
             }
 
-            // Show manual bypass button if loading takes over 3 seconds
             const timeoutId = setTimeout(() => {
                 if (!hasLoaded) {
                     document.getElementById('bypassBtn').style.display = 'inline-block';
@@ -304,10 +299,7 @@
                             <span>${totalAmount}</span>
                         </div>
                         <div style="margin-top:12px; padding:10px; background:#fdfcdc; border:1px solid #f1dca7; border-radius:6px; text-align:center;">
-                            <div style="margin-bottom:4px;">
-                                <img src="PayID.png" alt="PayID" style="height: 22px; vertical-align: middle;">
-                            </div>
-                            <div style="font-size: 1.1rem; font-weight: bold; color: #000;">0433949007</div>
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #000;">PayID: 0433949007</div>
                             <div style="font-size: 0.95rem; color: #333; font-weight: 600;">Arthi Shivaram</div>
                         </div>
                     `;
