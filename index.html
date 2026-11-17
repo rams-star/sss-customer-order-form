@@ -60,7 +60,7 @@
                 <span id="grandTotal">$0.00</span>
             </div>
 
-            <!-- PayID Payment Section (Logo Removed) -->
+            <!-- PayID Payment Section -->
             <div class="payment-box">
                 <div style="font-size: 1.25rem; font-weight: bold; color: #000; letter-spacing: 0.5px;">
                     PayID: 0433949007
@@ -95,7 +95,7 @@
 
             if (data.status === 'closed') {
                 const closedDiv = document.getElementById('closedMsg');
-                let formattedMsg = data.message
+                let formattedMsg = (data.message || "Online pre-orders are closed for now.")
                     .replace('Arthi Shivaram', '<strong>Arthi Shivaram</strong>')
                     .replace('0433 949 007', '<strong>0433 949 007</strong>');
 
@@ -131,10 +131,14 @@
             if (cachedData) {
                 try {
                     const parsed = JSON.parse(cachedData);
-                    hasLoaded = true;
-                    processServerData(parsed);
+                    if (parsed && parsed.status === 'open' && Array.isArray(parsed.menu) && parsed.menu.length > 0) {
+                        hasLoaded = true;
+                        processServerData(parsed);
+                    } else {
+                        localStorage.removeItem('sss_menu_cache');
+                    }
                 } catch (e) {
-                    console.error("Cache read error");
+                    localStorage.removeItem('sss_menu_cache');
                 }
             }
 
@@ -149,7 +153,11 @@
                 .then(data => {
                     hasLoaded = true;
                     clearTimeout(timeoutId);
-                    localStorage.setItem('sss_menu_cache', JSON.stringify(data));
+                    if (data && data.status === 'open') {
+                        localStorage.setItem('sss_menu_cache', JSON.stringify(data));
+                    } else {
+                        localStorage.removeItem('sss_menu_cache');
+                    }
                     processServerData(data);
                 })
                 .catch(err => {
