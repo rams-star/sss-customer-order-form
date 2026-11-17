@@ -65,11 +65,15 @@
             <p style="margin-bottom:8px;">Your order has been sent to our kitchen successfully.</p>
             
             <div id="receiptDetails" class="receipt-card"></div>
-<!--
+
+            <!-- WHATSAPP FEATURE (Currently Commented Out) -->
+            <!--
             <p style="font-size: 13px; color: #2d6a4f; margin-bottom: 6px;">Optional: Send a copy directly to our WhatsApp</p>
-            <a id="whatsappLink" href="#" target="_blank" class="whatsapp-btn">Send Order Details via WhatsApp</a> -->
+            <a id="whatsappLink" href="#" target="_blank" class="whatsapp-btn">Send Order Details via WhatsApp</a>
+            -->
+
             <button type="button" class="submit-btn" style="margin-top:12px; background:#046A38;" onclick="location.reload()">Place Another Order</button>
-           <p style="font-size: 13px; color: #000000; margin-bottom: 6px;">Thank you for your support!</p>
+            <p style="font-size: 13px; color: #000000; margin-bottom: 6px;">Thank you for your support!</p>
         </div>
     </div>
 
@@ -228,6 +232,7 @@
             const custMobile = document.getElementById('customerMobile').value.trim();
             const totalAmount = document.getElementById('grandTotal').textContent;
 
+            // Optional summary string if you decide to uncomment WhatsApp later
             let summaryText = "New Order Received!\n\nCustomer: " + custName + "\nMobile: " + custMobile + "\n\nItems:\n";
             let receiptItemsHtml = "";
 
@@ -267,9 +272,25 @@
             .then(res => res.json())
             .then(data => {
                 if (data.result === 'success') {
+                    // Format Sydney Date & Time dynamically
+                    const now = new Date();
+                    const sydneyDateTime = now.toLocaleString('en-AU', {
+                        timeZone: 'Australia/Sydney',
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+
+                    const orderIdDisplay = data.orderId ? data.orderId : 'N/A';
+
                     document.getElementById('receiptDetails').innerHTML = `
                         <h4>Order Summary</h4>
                         <div style="margin-bottom:8px;">
+                            <strong>Order ID:</strong> ${orderIdDisplay}<br>
+                            <strong>Order Date:</strong> ${sydneyDateTime} (Sydney)<br>
                             <strong>Name:</strong> ${custName}<br>
                             <strong>Mobile:</strong> ${custMobile}
                         </div>
@@ -287,8 +308,13 @@
                     `;
 
                     document.getElementById('orderForm').style.display = 'none';
-                    //const whatsappUrl = `https://wa.me/61433949007?text=` + encodeURIComponent(summaryText);
-                    //document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
+
+                    // WHATSAPP JS LOGIC (Currently Commented Out)
+                    /*
+                    const whatsappUrl = `https://wa.me/61433949007?text=` + encodeURIComponent(summaryText);
+                    document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
+                    */
+
                     document.getElementById('successScreen').style.display = 'block';
                 } else {
                     throw new Error(data.error || 'Unknown error');
