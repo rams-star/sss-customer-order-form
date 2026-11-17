@@ -39,7 +39,10 @@
         </div>
         <h2>SSS Kitchen Order Form</h2>
 
-        <div id="loader" class="status-msg">Loading menu...</div>
+        <div id="loader" class="status-msg">
+            Loading menu...<br><br>
+            <button id="bypassBtn" style="display:none; background:#2d6a4f; color:white; border:none; padding:10px 16px; border-radius:6px; cursor:pointer; font-weight:bold;" onclick="forceOpenForm()">Click here to open form manually</button>
+        </div>
         <div id="closedMsg" class="status-msg" style="display:none;"></div>
         
         <form id="orderForm" style="display:none;">
@@ -79,7 +82,6 @@
             <h3 style="margin-top:0;">Order Received!</h3>
             <p style="margin-bottom:8px;">Your order has been sent to our kitchen successfully.</p>
             
-            <!-- On-Screen Order Receipt -->
             <div id="receiptDetails" class="receipt-card"></div>
 
             <p style="font-size: 13px; color: #2d6a4f; margin-bottom: 6px;">Optional: Send a copy directly to our WhatsApp</p>
@@ -118,6 +120,14 @@
             }
         }
 
+        function forceOpenForm() {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('orderForm').style.display = 'block';
+            if (document.getElementById('itemsContainer').children.length === 0) {
+                addItemRow();
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             const cachedData = localStorage.getItem('sss_menu_cache');
             let hasLoaded = false;
@@ -132,12 +142,10 @@
                 }
             }
 
+            // Show manual bypass button if loading takes over 3 seconds
             const timeoutId = setTimeout(() => {
                 if (!hasLoaded) {
-                    document.getElementById('loader').style.display = 'none';
-                    const closedDiv = document.getElementById('closedMsg');
-                    closedDiv.innerHTML = '⚠️ Connection timeout. Please check your internet or Google Apps Script deployment.';
-                    closedDiv.style.display = 'block';
+                    document.getElementById('bypassBtn').style.display = 'inline-block';
                 }
             }, 3000);
 
@@ -151,12 +159,9 @@
                 })
                 .catch(err => {
                     console.error("Fetch error: ", err);
+                    clearTimeout(timeoutId);
                     if (!hasLoaded) {
-                        clearTimeout(timeoutId);
-                        document.getElementById('loader').style.display = 'none';
-                        const closedDiv = document.getElementById('closedMsg');
-                        closedDiv.innerHTML = '⚠️ Unable to connect to the menu server. Please check your connection or try refreshing.';
-                        closedDiv.style.display = 'block';
+                        document.getElementById('bypassBtn').style.display = 'inline-block';
                     }
                 });
         });
@@ -251,4 +256,76 @@
 
             document.querySelectorAll('.item-box').forEach(box => {
                 const itemSelect = box.querySelector('.item-select');
-                const selectedOpt = itemSelect.options[itemSelect.
+                const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
+                if (itemSelect.value) {
+                    const qty = Number(box.querySelector('.qty-input').value);
+                    const price = Number(selectedOpt.dataset.price);
+                    const subTotal = (price * qty).toFixed(2);
+                    
+                    items.push({ itemId: itemSelect.value, price: price, quantity: qty });
+                    summaryText += `- ${selectedOpt.text} (Qty: ${qty})\n`;
+                    receiptItemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>${selectedOpt.text.split(' ($')[0]} &times; ${qty}</span>
+                        <span>$${subTotal}</span>
+                    </div>`;
+                }
+            });
+
+            summaryText += `\nTotal: ${totalAmount}\nPayment via PayID: 0433949007 (Arthi Shivaram)`;
+
+            const payload = {
+                customerName: custName,
+                customerMobile: custMobile,
+                items: items
+            };
+
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('submittingMsg').style.display = 'block';
+
+            fetch(scriptURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.result === 'success') {
+                    document.getElementById('receiptDetails').innerHTML = `
+                        <h4>Order Summary</h4>
+                        <div style="margin-bottom:8px;">
+                            <strong>Name:</strong> ${custName}<br>
+                            <strong>Mobile:</strong> ${custMobile}
+                        </div>
+                        <div style="border-top:1px solid #eee; padding-top:8px;">
+                            ${receiptItemsHtml}
+                        </div>
+                        <div class="receipt-total">
+                            <span>Total Paid / Due:</span>
+                            <span>${totalAmount}</span>
+                        </div>
+                        <div style="margin-top:12px; padding:10px; background:#fdfcdc; border:1px solid #f1dca7; border-radius:6px; text-align:center;">
+                            <div style="margin-bottom:4px;">
+                                <img src="PayID.png" alt="PayID" style="height: 22px; vertical-align: middle;">
+                            </div>
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #000;">0433949007</div>
+                            <div style="font-size: 0.95rem; color: #333; font-weight: 600;">Arthi Shivaram</div>
+                        </div>
+                    `;
+
+                    document.getElementById('orderForm').style.display = 'none';
+                    const whatsappUrl = `https://wa.me/61433949007?text=` + encodeURIComponent(summaryText);
+                    document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
+                    document.getElementById('successScreen').style.display = 'block';
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            })
+            .catch(err => {
+                alert('Error submitting order: ' + err.message);
+                document.getElementById('submitBtn').style.display = 'block';
+                document.getElementById('submittingMsg').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
