@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSS Kitchen Order Form</title>
+    <title>Kitchen Order Form</title>
     <link rel="icon" type="image/jpeg" href="SSS.jpg">
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; margin: 0; padding: 16px; display: flex; justify-content: center; padding-bottom: 90px; }
@@ -45,7 +45,7 @@
         <div class="header-logo">
             <img src="SSS.jpg" alt="SSS Logo">
         </div>
-        <h2 id="formTitle">SSS Kitchen Order Form</h2>
+        <h2>Kitchen Order Form</h2>
 
         <div id="loader" class="status-msg">Loading menu...</div>
         <div id="closedMsg" class="status-msg" style="display:none;"></div>
@@ -108,10 +108,6 @@
                 closedDiv.style.display = 'block';
                 document.getElementById('orderForm').style.display = 'none';
                 return;
-            }
-
-            if (data.eventName) {
-                document.getElementById('formTitle').textContent = data.eventName + " Order Form";
             }
 
             menuData = data.menu || [];
@@ -294,7 +290,7 @@
                         <h4>Order Summary</h4>
                         <div style="margin-bottom:8px;">
                             <strong>Order ID:</strong> ${orderIdDisplay}<br>
-                            <strong>Order Date:</strong> ${sydneyDateTime} <br>
+                            <strong>Order Date:</strong> ${sydneyDateTime} (Sydney)<br>
                             <strong>Name:</strong> ${custName}<br>
                             <strong>Mobile:</strong> ${custMobile}
                         </div>
