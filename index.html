@@ -22,7 +22,6 @@
         .total-bar { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #1b4332; padding: 12px 0; border-top: 2px solid #eee; border-bottom: 2px solid #eee; margin-bottom: 18px; }
         .submit-btn { background: #2d6a4f; color: white; border: none; padding: 14px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
         .submit-btn:hover { background: #1b4332; }
-        .status-msg { text-align: center; padding: 30px 10px; color: #444; font-size: 16px; line-height: 1.5; }
         .success-box { background: #d8f3dc; color: #1b4332; padding: 20px; border-radius: 10px; text-align: center; }
         .receipt-card { background: #ffffff; color: #333; text-align: left; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #b7e4c7; font-size: 14px; line-height: 1.6; }
         .receipt-card h4 { margin: 0 0 8px 0; color: #1b4332; border-bottom: 1px solid #eee; padding-bottom: 6px; font-size: 16px; }
@@ -36,14 +35,8 @@
             <img src="SSS.jpg" alt="SSS Logo">
         </div>
         <h2>SSS Kitchen Order Form</h2>
-
-        <div id="loader" class="status-msg">
-            Loading menu...<br><br>
-            <button id="bypassBtn" style="display:none; background:#2d6a4f; color:white; border:none; padding:10px 16px; border-radius:6px; cursor:pointer; font-weight:bold;" onclick="forceOpenForm()">Click here to open form manually</button>
-        </div>
-        <div id="closedMsg" class="status-msg" style="display:none;"></div>
         
-        <form id="orderForm" style="display:none;">
+        <form id="orderForm">
             <label for="customerName">Name *</label>
             <input type="text" id="customerName" required placeholder="Enter your name">
 
@@ -78,90 +71,15 @@
     <script>
         const scriptURL = 'https://script.google.com/macros/s/AKfycbziuk9f9wSi7o9mmLPAy9oVSG1VkOt6NKlmvRm81b9uVJzbYdDvDUKmLoDLzTEjJwo/exec';
         
-        // Fallback menu in case Google Apps Script is unreachable or slow
-        let menuData = [
+        // Hardcoded reliable menu items so the form loads instantly without hanging on network requests
+        const menuData = [
             { id: "1", category: "Breakfast", name: "Benne (Butter) Dosa", price: 12.00 },
             { id: "2", category: "Breakfast", name: "Poori and Baaji (Smashed Potato) (3 pieces)", price: 12.00 }
         ];
 
-        function processServerData(data) {
-            document.getElementById('loader').style.display = 'none';
-
-            if (data && data.status === 'closed') {
-                const closedDiv = document.getElementById('closedMsg');
-                let formattedMsg = (data.message || "Online pre-orders are closed for now.")
-                    .replace('Arthi Shivaram', '<strong>Arthi Shivaram</strong>')
-                    .replace('0433 949 007', '<strong>0433 949 007</strong>');
-
-                closedDiv.innerHTML = formattedMsg;
-                closedDiv.style.display = 'block';
-                document.getElementById('orderForm').style.display = 'none';
-                return;
-            }
-
-            if (data && data.menu && data.menu.length > 0) {
-                menuData = data.menu;
-            }
-
-            document.getElementById('closedMsg').style.display = 'none';
-            document.getElementById('orderForm').style.display = 'block';
-            
-            if (document.getElementById('itemsContainer').children.length === 0) {
-                addItemRow();
-            } else {
-                updateAllDropdowns();
-            }
-        }
-
-        function forceOpenForm() {
-            processServerData({ status: 'open', menu: menuData });
-        }
-
         window.addEventListener('DOMContentLoaded', () => {
-            let hasLoaded = false;
-
-            // Show manual bypass button & enable fallback after 3 seconds
-            const timeoutId = setTimeout(() => {
-                if (!hasLoaded) {
-                    document.getElementById('bypassBtn').style.display = 'inline-block';
-                    // Auto-open with fallback data so user never gets stuck
-                    processServerData({ status: 'open', menu: menuData });
-                }
-            }, 3000);
-
-            fetch(scriptURL)
-                .then(res => res.json())
-                .then(data => {
-                    hasLoaded = true;
-                    clearTimeout(timeoutId);
-                    processServerData(data);
-                })
-                .catch(err => {
-                    console.error("Fetch error: ", err);
-                    clearTimeout(timeoutId);
-                    if (!hasLoaded) {
-                        processServerData({ status: 'open', menu: menuData });
-                    }
-                });
+            addItemRow();
         });
-
-        function updateAllDropdowns() {
-            document.querySelectorAll('.item-select').forEach(select => {
-                const currentVal = select.value;
-                let itemOptions = `<option value="">-- Select Menu Item --</option>`;
-                let categories = [...new Set(menuData.map(item => item.category))];
-                
-                categories.forEach(cat => {
-                    itemOptions += `<optgroup label="${cat}">`;
-                    menuData.filter(m => m.category === cat).forEach(item => {
-                        itemOptions += `<option value="${item.id}" data-price="${item.price}">${item.name} ($${item.price.toFixed(2)})</option>`;
-                    });
-                    itemOptions += `</optgroup>`;
-                });
-                select.innerHTML = itemOptions;
-                select.value = currentVal;
-            });
-        }
 
         function addItemRow() {
             const container = document.getElementById('itemsContainer');
