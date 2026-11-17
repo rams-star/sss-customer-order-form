@@ -25,7 +25,10 @@
         .payment-box { background: #fdfcdc; border: 1px solid #f1dca7; padding: 16px; border-radius: 10px; margin-top: 20px; text-align: center; }
         .status-msg { text-align: center; padding: 30px 10px; color: #444; font-size: 16px; line-height: 1.5; }
         .success-box { background: #d8f3dc; color: #1b4332; padding: 20px; border-radius: 10px; text-align: center; }
-        .whatsapp-btn { background: #25d366; color: white; text-decoration: none; display: block; padding: 12px; border-radius: 8px; font-weight: bold; margin-top: 12px; }
+        .receipt-card { background: #ffffff; color: #333; text-align: left; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #b7e4c7; font-size: 14px; line-height: 1.6; }
+        .receipt-card h4 { margin: 0 0 8px 0; color: #1b4332; border-bottom: 1px solid #eee; padding-bottom: 6px; font-size: 16px; }
+        .receipt-total { font-weight: bold; font-size: 16px; color: #1b4332; border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; }
+        .whatsapp-btn { background: #25d366; color: white; text-decoration: none; display: block; padding: 13px; border-radius: 8px; font-weight: bold; margin-top: 12px; font-size: 15px; }
     </style>
 </head>
 <body>
@@ -59,7 +62,7 @@
                 <h4 style="margin:0 0 8px 0; color:#55a630; font-size: 1.2rem;">PayID Payment Details</h4>
                 <p style="margin:0; font-size: 1.15rem; color:#333; line-height: 1.5;">
                     Pay via PayID: <strong style="color:#000;">0433949007</strong><br>
-                    Name: <strong style="color:#000;">Arthi Sivaram</strong>
+                    Name: <strong style="color:#000;">Arthi Shivaram</strong>
                 </p>
             </div>
 
@@ -68,8 +71,13 @@
         </form>
 
         <div id="successScreen" class="success-box" style="display:none;">
-            <h3>Order Received!</h3>
-            <p>Your order has been sent to our kitchen successfully.</p>
+            <h3 style="margin-top:0;">Order Received!</h3>
+            <p style="margin-bottom:8px;">Your order has been sent to our kitchen successfully.</p>
+            
+            <!-- On-Screen Order Receipt -->
+            <div id="receiptDetails" class="receipt-card"></div>
+
+            <p style="font-size: 13px; color: #2d6a4f; margin-bottom: 6px;">Optional: Send a copy directly to our WhatsApp</p>
             <a id="whatsappLink" href="#" target="_blank" class="whatsapp-btn">Send Order Details via WhatsApp</a>
             <button type="button" class="submit-btn" style="margin-top:12px; background:#6c757d;" onclick="location.reload()">Place Another Order</button>
         </div>
@@ -119,7 +127,6 @@
                 }
             }
 
-            // Fetch fresh data
             fetch(scriptURL)
                 .then(res => res.json())
                 .then(data => {
@@ -130,7 +137,6 @@
                 .catch(err => {
                     console.error("Fetch error: ", err);
                     if (!hasLoaded) {
-                        // Fallback if network blocks the fetch, so user isn't stuck on loader
                         document.getElementById('loader').style.display = 'none';
                         document.getElementById('closedMsg').innerHTML = '⚠️ Unable to connect to the menu server. Please check your connection or try refreshing.';
                         document.getElementById('closedMsg').style.display = 'block';
@@ -219,7 +225,12 @@
         document.getElementById('orderForm').addEventListener('submit', e => {
             e.preventDefault();
             const items = [];
-            let summaryText = "New Order Received!\n\nCustomer: " + document.getElementById('customerName').value + "\nMobile: " + document.getElementById('customerMobile').value + "\n\nItems:\n";
+            const custName = document.getElementById('customerName').value.trim();
+            const custMobile = document.getElementById('customerMobile').value.trim();
+            const totalAmount = document.getElementById('grandTotal').textContent;
+
+            let summaryText = "New Order Received!\n\nCustomer: " + custName + "\nMobile: " + custMobile + "\n\nItems:\n";
+            let receiptItemsHtml = "";
 
             document.querySelectorAll('.item-box').forEach(box => {
                 const itemSelect = box.querySelector('.item-select');
@@ -227,17 +238,22 @@
                 if (itemSelect.value) {
                     const qty = Number(box.querySelector('.qty-input').value);
                     const price = Number(selectedOpt.dataset.price);
+                    const subTotal = (price * qty).toFixed(2);
+                    
                     items.push({ itemId: itemSelect.value, price: price, quantity: qty });
                     summaryText += `- ${selectedOpt.text} (Qty: ${qty})\n`;
+                    receiptItemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>${selectedOpt.text.split(' ($')[0]} &times; ${qty}</span>
+                        <span>$${subTotal}</span>
+                    </div>`;
                 }
             });
 
-            const totalAmount = document.getElementById('grandTotal').textContent;
             summaryText += `\nTotal: ${totalAmount}\nPayment via PayID: 0433949007 (Arthi Shivaram)`;
 
             const payload = {
-                customerName: document.getElementById('customerName').value.trim(),
-                customerMobile: document.getElementById('customerMobile').value.trim(),
+                customerName: custName,
+                customerMobile: custMobile,
                 items: items
             };
 
@@ -252,8 +268,28 @@
             .then(res => res.json())
             .then(data => {
                 if (data.result === 'success') {
+                    // Populate the on-screen receipt
+                    document.getElementById('receiptDetails').innerHTML = `
+                        <h4>Order Summary</h4>
+                        <div style="margin-bottom:8px;">
+                            <strong>Name:</strong> ${custName}<br>
+                            <strong>Mobile:</strong> ${custMobile}
+                        </div>
+                        <div style="border-top:1px solid #eee; padding-top:8px;">
+                            ${receiptItemsHtml}
+                        </div>
+                        <div class="receipt-total">
+                            <span>Total Paid / Due:</span>
+                            <span>${totalAmount}</span>
+                        </div>
+                        <div style="margin-top:10px; padding:8px; background:#fdfcdc; border-radius:6px; font-size:13px; text-align:center;">
+                            <strong>PayID:</strong> 0433949007 (Arthi Shivaram)
+                        </div>
+                    `;
+
                     document.getElementById('orderForm').style.display = 'none';
-                    const whatsappUrl = `https://wa.me/?text=` + encodeURIComponent(summaryText);
+                    // Pre-addressed to Arthi Shivaram's Australian mobile number (61433949007)
+                    const whatsappUrl = `https://wa.me/61433949007?text=` + encodeURIComponent(summaryText);
                     document.getElementById('whatsappLink').setAttribute('href', whatsappUrl);
                     document.getElementById('successScreen').style.display = 'block';
                 } else {
