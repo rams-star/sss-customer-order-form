@@ -38,9 +38,48 @@
         .receipt-card h4 { margin: 0 0 8px 0; color: #1b4332; border-bottom: 1px solid #eee; padding-bottom: 6px; font-size: 16px; }
         .receipt-total { font-weight: bold; font-size: 16px; color: #1b4332; border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; }
         .whatsapp-btn { background: #25d366; color: white; text-decoration: none; display: block; padding: 13px; border-radius: 8px; font-weight: bold; margin-top: 12px; font-size: 15px; }
+
+        /* Animated Loading Overlay Styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #2d6a4f;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        .loading-text {
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    <!-- Animated Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+        <div class="spinner"></div>
+        <div class="loading-text">Placing your order, please wait...</div>
+    </div>
+
     <div class="card">
         <div class="header-logo">
             <img src="SSS.jpg" alt="SSS Logo">
@@ -71,7 +110,6 @@
                 </div>
                 <button type="submit" class="submit-btn" id="submitBtn">Submit Order</button>
             </div>
-            <div id="submittingMsg" style="display:none; text-align:center; margin-top:12px; color:#555;">Placing your order...</div>
         </form>
 
         <div id="successScreen" class="success-box" style="display:none;">
@@ -262,8 +300,8 @@
                 items: items
             };
 
-            document.getElementById('submitBtn').style.display = 'none';
-            document.getElementById('submittingMsg').style.display = 'block';
+            // Show the animated loading overlay immediately
+            document.getElementById('loadingOverlay').style.display = 'flex';
 
             fetch(scriptURL, {
                 method: 'POST',
@@ -272,6 +310,9 @@
             })
             .then(res => res.json())
             .then(data => {
+                // Hide the loading overlay once response arrives
+                document.getElementById('loadingOverlay').style.display = 'none';
+
                 if (data.result === 'success') {
                     const now = new Date();
                     const sydneyDateTime = now.toLocaleString('en-AU', {
@@ -321,9 +362,9 @@
                 }
             })
             .catch(err => {
+                // Hide the loading overlay if an error occurs
+                document.getElementById('loadingOverlay').style.display = 'none';
                 alert('Error submitting order: ' + err.message);
-                document.getElementById('submitBtn').style.display = 'block';
-                document.getElementById('submittingMsg').style.display = 'none';
             });
         }
     </script>
