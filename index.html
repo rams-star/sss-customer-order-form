@@ -14,6 +14,10 @@
         label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 14px; }
         input[type="text"], input[type="tel"], input[type="search"], input[type="email"] { width: 100%; padding: 11px; margin-bottom: 14px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #fff; }
 
+        .event-switcher { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
+        .event-pill { padding: 8px 14px; border-radius: 999px; border: 1px solid #2d6a4f; background: #ffffff; color: #2d6a4f; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.15s ease; }
+        .event-pill.active { background: #2d6a4f; color: #ffffff; }
+
         .order-type-box { margin-bottom: 16px; }
         .radio-group { display: flex; gap: 12px; margin-top: 6px; }
         .radio-option { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-weight: 600; color: #333; background: #f8faf9; }
@@ -38,7 +42,7 @@
         .submit-btn { background: #2d6a4f; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
         .submit-btn:hover { background: #1b4332; }
         
-        .status-msg { text-align: center; padding: 30px 10px; color: #444; font-size: 16px; line-height: 1.5; }
+        .status-msg { text-align: center; padding: 24px 10px; color: #444; font-size: 16px; line-height: 1.5; }
         .success-box { background: #d8f3dc; color: #1b4332; padding: 20px; border-radius: 10px; text-align: center; }
         .receipt-card { background: #ffffff; color: #333; text-align: left; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #b7e4c7; font-size: 14px; line-height: 1.6; }
         .receipt-card h4 { margin: 0 0 8px 0; color: #1b4332; border-bottom: 1px solid #eee; padding-bottom: 6px; font-size: 16px; }
@@ -95,7 +99,10 @@
         <div class="header-logo">
             <img src="SSS.jpg" alt="SSS Logo">
         </div>
-        <h2>Kitchen Order Form</h2>
+        <h2 id="formHeading">Kitchen Order Form</h2>
+
+        <!-- On-Page Event / Menu Switcher (e.g., South Indian Breakfast | Daily Lunch) -->
+        <div id="eventSwitcher" class="event-switcher" style="display:none;"></div>
 
         <div id="loader" class="status-msg">Loading menu...</div>
         <div id="closedMsg" class="status-msg" style="display:none;"></div>
@@ -155,13 +162,21 @@
 
     <script>
         const scriptURL = 'https://script.google.com/macros/s/AKfycbziuk9f9wSi7o9mmLPAy9oVSG1VkOt6NKlmvRm81b9uVJzbYdDvDUKmLoDLzTEjJwo/exec';
+        let serverBundle = null;
+        let currentEventName = '';
         let menuData = [];
         let activeOrderType = 'Take Away';
         let lastReceiptData = null;
 
         const urlParams = new URLSearchParams(window.location.search);
         const eventParam = (urlParams.get('event') || '').trim();
-        const cacheKey = eventParam ? `sss_menu_cache_${eventParam.toLowerCase()}` : 'sss_menu_cache';
+        const cacheKey = 'sss_menu_bundle_cache';
+
+        function formatClosedMessage(rawMsg) {
+            return (rawMsg || "Online pre-orders are closed for now.")
+                .replace('Arthi Shivaram', '<strong>Arthi Shivaram</strong>')
+                .replace('0433 949 007', '<strong>0433 949 007</strong>');
+        }
 
         function configureOrderType(allowedRaw) {
             const container = document.getElementById('orderTypeContainer');
@@ -203,27 +218,80 @@
             return activeOrderType;
         }
 
-        function processServerData(data) {
-            document.getElementById('loader').style.display = 'none';
-
-            if (data.status === 'closed') {
-                const closedDiv = document.getElementById('closedMsg');
-                let formattedMsg = (data.message || "Online pre-orders are closed for now.")
-                    .replace('Arthi Shivaram', '<strong>Arthi Shivaram</strong>')
-                    .replace('0433 949 007', '<strong>0433 949 007</strong>');
-
-                closedDiv.innerHTML = formattedMsg;
-                closedDiv.style.display = 'block';
-                document.getElementById('orderForm').style.display = 'none';
+        function renderEventSwitcher(eventsList, activeName) {
+            const switcher = document.getElementById('eventSwitcher');
+            if (!Array.isArray(eventsList) || eventsList.length <= 1) {
+                switcher.style.display = 'none';
+                switcher.innerHTML = '';
                 return;
             }
 
-            menuData = data.menu || [];
-            configureOrderType(data.allowedOrderType || data.allowedOrderTypes);
+            switcher.style.display = 'flex';
+            switcher.innerHTML = eventsList.map(ev => {
+                const isActive = ev.eventName === activeName;
+                const safeName = ev.eventName.replace(/'/g, "\\'");
+                return `<button type="button" class="event-pill ${isActive ? 'active' : ''}" onclick="selectEvent('${safeName}')">${ev.eventName}</button>`;
+            }).join('');
+        }
+
+        function selectEvent(targetEventName) {
+            if (!serverBundle) return;
+            const eventsList = Array.isArray(serverBundle.events) ? serverBundle.events : [];
+            const matched = eventsList.find(ev => ev.eventName === targetEventName) || {
+                eventName: targetEventName,
+                allowedOrderType: serverBundle.allowedOrderType || 'Take Away',
+                isOpen: serverBundle.status !== 'closed',
+                closedMessage: serverBundle.message || ''
+            };
+
+            currentEventName = matched.eventName;
+            document.getElementById('formHeading').textContent = currentEventName || 'Kitchen Order Form';
+            renderEventSwitcher(eventsList, currentEventName);
+
+            const searchInput = document.getElementById('menuSearch');
+            if (searchInput) searchInput.value = '';
+
+            if (matched.isOpen === false) {
+                document.getElementById('orderForm').style.display = 'none';
+                const closedDiv = document.getElementById('closedMsg');
+                closedDiv.innerHTML = formatClosedMessage(matched.closedMessage);
+                closedDiv.style.display = 'block';
+                return;
+            }
+
             document.getElementById('closedMsg').style.display = 'none';
             document.getElementById('orderForm').style.display = 'block';
-            
+
+            const menusByEvent = serverBundle.menusByEvent || {};
+            const rawMenu = Array.isArray(menusByEvent[currentEventName])
+                ? menusByEvent[currentEventName]
+                : (currentEventName === serverBundle.eventName ? (serverBundle.menu || []) : []);
+
+            menuData = rawMenu.map(item => ({ ...item, qty: 0 }));
+            configureOrderType(matched.allowedOrderType);
             renderMenu();
+            calculateGrandTotal();
+        }
+
+        function processServerData(data) {
+            document.getElementById('loader').style.display = 'none';
+            serverBundle = data;
+
+            const eventsList = Array.isArray(data.events) ? data.events : [];
+            let initialEventName = data.eventName || (eventsList[0] ? eventsList[0].eventName : 'Kitchen Order Form');
+
+            if (eventParam) {
+                const lowerParam = eventParam.toLowerCase();
+                const paramMatch = eventsList.find(ev => {
+                    const n = String(ev.eventName || '').toLowerCase();
+                    return n === lowerParam || n.indexOf(lowerParam) !== -1;
+                });
+                if (paramMatch) {
+                    initialEventName = paramMatch.eventName;
+                }
+            }
+
+            selectEvent(initialEventName);
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -233,7 +301,7 @@
             if (cachedData) {
                 try {
                     const parsed = JSON.parse(cachedData);
-                    if (parsed && parsed.status === 'open' && Array.isArray(parsed.menu) && parsed.menu.length > 0) {
+                    if (parsed && (Array.isArray(parsed.menu) || parsed.menusByEvent)) {
                         hasLoaded = true;
                         processServerData(parsed);
                     }
@@ -250,7 +318,7 @@
                 .then(res => res.json())
                 .then(data => {
                     hasLoaded = true;
-                    if (data && data.status === 'open') {
+                    if (data) {
                         localStorage.setItem(cacheKey, JSON.stringify(data));
                     }
                     processServerData(data);
@@ -419,7 +487,7 @@
             const items = [];
             const receiptItemsList = [];
             let receiptItemsHtml = "";
-            let summaryText = "New Order Received!\n\nCustomer: " + custName + "\nMobile: " + custMobile + "\nOrder Type: " + orderType + "\n\nItems:\n";
+            let summaryText = "New Order Received!\n\n" + (currentEventName ? "Menu: " + currentEventName + "\n" : "") + "Customer: " + custName + "\nMobile: " + custMobile + "\nOrder Type: " + orderType + "\n\nItems:\n";
 
             menuData.forEach(item => {
                 if (item.qty && item.qty > 0) {
@@ -450,7 +518,8 @@
                 customerName: custName,
                 customerMobile: custMobile,
                 orderType: orderType,
-                event: eventParam || '',
+                eventName: currentEventName,
+                event: eventParam || currentEventName,
                 items: items
             };
 
@@ -483,7 +552,8 @@
 
                     lastReceiptData = {
                         orderId: orderIdDisplay,
-                        orderDate: `${sydneyDateTime} (Sydney)`,
+                        orderDate: `${sydneyDateTime} `,
+                        eventName: currentEventName,
                         customerName: custName,
                         customerMobile: custMobile,
                         orderType: orderType,
@@ -500,7 +570,8 @@
                         <h4>Order Summary</h4>
                         <div style="margin-bottom:8px;">
                             <strong>Order ID:</strong> ${orderIdDisplay}<br>
-                            <strong>Order Date:</strong> ${sydneyDateTime} (Sydney)<br>
+                            <strong>Order Date:</strong> ${sydneyDateTime} <br>
+                            ${currentEventName ? `<strong>Menu:</strong> ${currentEventName}<br>` : ''}
                             <strong>Name:</strong> ${custName}<br>
                             <strong>Mobile:</strong> ${custMobile}<br>
                             <strong>Order Type:</strong> ${orderType}
@@ -518,6 +589,7 @@
                         </div>
                     `;
 
+                    document.getElementById('eventSwitcher').style.display = 'none';
                     document.getElementById('orderForm').style.display = 'none';
 
                     // WHATSAPP JS LOGIC (Currently Commented Out)
