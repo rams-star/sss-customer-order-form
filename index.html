@@ -13,6 +13,12 @@
         h2 { margin: 0 0 16px 0; color: #1b4332; text-align: center; font-size: 22px; }
         label { display: block; margin-bottom: 6px; font-weight: 600; color: #333; font-size: 14px; }
         input[type="text"], input[type="tel"], input[type="search"] { width: 100%; padding: 11px; margin-bottom: 14px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #fff; }
+
+        .order-type-box { margin-bottom: 16px; }
+        .radio-group { display: flex; gap: 12px; margin-top: 6px; }
+        .radio-option { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-weight: 600; color: #333; background: #f8faf9; }
+        .radio-option input[type="radio"] { margin: 0; accent-color: #2d6a4f; width: 16px; height: 16px; }
+        .locked-type-badge { display: inline-block; background: #e9f5ee; color: #1b4332; border: 1px solid #b7e4c7; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-bottom: 14px; }
         
         .category-title { color: #1b4332; font-size: 17px; font-weight: bold; margin: 20px 0 10px 0; border-bottom: 2px solid #e9f5ee; padding-bottom: 4px; }
         .menu-item-card { background: #f8faf9; border: 1px solid #d8e2dc; padding: 12px 14px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
@@ -96,6 +102,9 @@
             <label for="customerMobile">Mobile Number *</label>
             <input type="tel" id="customerMobile" required placeholder="Enter your mobile number">
 
+            <!-- Dynamic Order Type Section (populated from Events!Allowed Order Type) -->
+            <div id="orderTypeContainer" class="order-type-box"></div>
+
             <label>Browse & Select Items *</label>
             <input type="search" id="menuSearch" placeholder="🔍 Search menu items (e.g. Dosa, Idly)..." oninput="filterMenu()">
 
@@ -132,6 +141,51 @@
     <script>
         const scriptURL = 'https://script.google.com/macros/s/AKfycbziuk9f9wSi7o9mmLPAy9oVSG1VkOt6NKlmvRm81b9uVJzbYdDvDUKmLoDLzTEjJwo/exec';
         let menuData = [];
+        let activeOrderType = 'Take Away';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventParam = (urlParams.get('event') || '').trim();
+        const cacheKey = eventParam ? `sss_menu_cache_${eventParam.toLowerCase()}` : 'sss_menu_cache';
+
+        function configureOrderType(allowedRaw) {
+            const container = document.getElementById('orderTypeContainer');
+            const parsedTypes = String(allowedRaw || 'Take Away')
+                .split(',')
+                .map(t => t.trim())
+                .filter(Boolean);
+
+            const validTypes = parsedTypes.filter(t => t === 'Eat In' || t === 'Take Away');
+            const options = validTypes.length > 0 ? validTypes : ['Take Away'];
+
+            if (options.length === 1) {
+                activeOrderType = options[0];
+                container.innerHTML = `
+                    <label>Order Type</label>
+                    <div class="locked-type-badge">${activeOrderType} Only</div>
+                `;
+            } else {
+                activeOrderType = '';
+                container.innerHTML = `
+                    <label>Order Type *</label>
+                    <div class="radio-group">
+                        ${options.map(opt => `
+                            <label class="radio-option">
+                                <input type="radio" name="orderType" value="${opt}" required onchange="activeOrderType = this.value">
+                                <span>${opt}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        function getSelectedOrderType() {
+            const checked = document.querySelector('input[name="orderType"]:checked');
+            if (checked) {
+                activeOrderType = checked.value;
+            }
+            return activeOrderType;
+        }
 
         function processServerData(data) {
             document.getElementById('loader').style.display = 'none';
@@ -149,6 +203,7 @@
             }
 
             menuData = data.menu || [];
+            configureOrderType(data.allowedOrderType || data.allowedOrderTypes);
             document.getElementById('closedMsg').style.display = 'none';
             document.getElementById('orderForm').style.display = 'block';
             
@@ -156,7 +211,7 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            const cachedData = localStorage.getItem('sss_menu_cache');
+            const cachedData = localStorage.getItem(cacheKey);
             let hasLoaded = false;
 
             if (cachedData) {
@@ -167,16 +222,20 @@
                         processServerData(parsed);
                     }
                 } catch (e) {
-                    localStorage.removeItem('sss_menu_cache');
+                    localStorage.removeItem(cacheKey);
                 }
             }
 
-            fetch(scriptURL)
+            const getUrl = eventParam
+                ? `${scriptURL}?event=${encodeURIComponent(eventParam)}`
+                : scriptURL;
+
+            fetch(getUrl)
                 .then(res => res.json())
                 .then(data => {
                     hasLoaded = true;
                     if (data && data.status === 'open') {
-                        localStorage.setItem('sss_menu_cache', JSON.stringify(data));
+                        localStorage.setItem(cacheKey, JSON.stringify(data));
                     }
                     processServerData(data);
                 })
@@ -269,10 +328,16 @@
             e.preventDefault();
             const custName = document.getElementById('customerName').value.trim();
             const custMobile = document.getElementById('customerMobile').value.trim();
+            const orderType = getSelectedOrderType();
+
+            if (!orderType) {
+                alert('Please select Eat In or Take Away before submitting.');
+                return;
+            }
             
             const items = [];
             let receiptItemsHtml = "";
-            let summaryText = "New Order Received!\n\nCustomer: " + custName + "\nMobile: " + custMobile + "\n\nItems:\n";
+            let summaryText = "New Order Received!\n\nCustomer: " + custName + "\nMobile: " + custMobile + "\nOrder Type: " + orderType + "\n\nItems:\n";
 
             menuData.forEach(item => {
                 if (item.qty && item.qty > 0) {
@@ -297,6 +362,8 @@
             const payload = {
                 customerName: custName,
                 customerMobile: custMobile,
+                orderType: orderType,
+                event: eventParam || '',
                 items: items
             };
 
@@ -333,7 +400,8 @@
                             <strong>Order ID:</strong> ${orderIdDisplay}<br>
                             <strong>Order Date:</strong> ${sydneyDateTime} (Sydney)<br>
                             <strong>Name:</strong> ${custName}<br>
-                            <strong>Mobile:</strong> ${custMobile}
+                            <strong>Mobile:</strong> ${custMobile}<br>
+                            <strong>Order Type:</strong> ${orderType}
                         </div>
                         <div style="border-top:1px solid #eee; padding-top:8px;">
                             ${receiptItemsHtml}
