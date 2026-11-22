@@ -22,7 +22,9 @@
         .radio-group { display: flex; gap: 12px; margin-top: 6px; }
         .radio-option { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-weight: 600; color: #333; background: #f8faf9; }
         .radio-option input[type="radio"] { margin: 0; accent-color: #2d6a4f; width: 16px; height: 16px; }
-        .locked-type-badge { display: inline-block; background: #e9f5ee; color: #1b4332; border: 1px solid #b7e4c7; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-bottom: 14px; }
+        .locked-type-badge { display: inline-block; background: #e9f5ee; color: #1b4332; border: 1px solid #b7e4c7; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+        .location-banner { background: #f8faf9; border: 1px solid #d8e2dc; border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 13.5px; color: #1b4332; line-height: 1.45; }
+        .location-banner a { color: #2d6a4f; font-weight: 600; text-decoration: underline; }
         
         .category-title { color: #1b4332; font-size: 17px; font-weight: bold; margin: 20px 0 10px 0; border-bottom: 2px solid #e9f5ee; padding-bottom: 4px; }
         .menu-item-card { background: #f8faf9; border: 1px solid #d8e2dc; padding: 12px 14px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
@@ -162,6 +164,9 @@
 
     <script>
         const scriptURL = 'https://script.google.com/macros/s/AKfycbziuk9f9wSi7o9mmLPAy9oVSG1VkOt6NKlmvRm81b9uVJzbYdDvDUKmLoDLzTEjJwo/exec';
+        const KITCHEN_ADDRESS = '15, Bannaby Cres, Schofields, NSW 2762';
+        const KITCHEN_MAPS_URL = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(KITCHEN_ADDRESS);
+
         let serverBundle = null;
         let currentEventName = '';
         let menuData = [];
@@ -171,6 +176,19 @@
         const urlParams = new URLSearchParams(window.location.search);
         const eventParam = (urlParams.get('event') || '').trim();
         const cacheKey = 'sss_menu_bundle_cache';
+
+        function getLocationLabel(orderType) {
+            if (orderType === 'Eat In') return 'Dine-in Location';
+            if (orderType === 'Take Away') return 'Pickup Location';
+            return 'Location';
+        }
+
+        function updateLocationBanner(orderType) {
+            const banner = document.getElementById('locationBanner');
+            if (!banner) return;
+            const label = getLocationLabel(orderType);
+            banner.innerHTML = `📍 <strong>${label}:</strong> <a href="${KITCHEN_MAPS_URL}" target="_blank" rel="noopener noreferrer">${KITCHEN_ADDRESS}</a>`;
+        }
 
         function formatClosedMessage(rawMsg) {
             return (rawMsg || "Online pre-orders are closed for now.")
@@ -193,6 +211,7 @@
                 container.innerHTML = `
                     <label>Order Type</label>
                     <div class="locked-type-badge">${activeOrderType} Only</div>
+                    <div id="locationBanner" class="location-banner"></div>
                 `;
             } else {
                 activeOrderType = '';
@@ -201,13 +220,16 @@
                     <div class="radio-group">
                         ${options.map(opt => `
                             <label class="radio-option">
-                                <input type="radio" name="orderType" value="${opt}" required onchange="activeOrderType = this.value">
+                                <input type="radio" name="orderType" value="${opt}" required onchange="activeOrderType = this.value; updateLocationBanner(this.value);">
                                 <span>${opt}</span>
                             </label>
                         `).join('')}
                     </div>
+                    <div id="locationBanner" class="location-banner"></div>
                 `;
             }
+
+            updateLocationBanner(activeOrderType);
         }
 
         function getSelectedOrderType() {
@@ -483,11 +505,13 @@
                 alert('Please select Eat In or Take Away before submitting.');
                 return;
             }
+
+            const locationLabel = getLocationLabel(orderType);
             
             const items = [];
             const receiptItemsList = [];
             let receiptItemsHtml = "";
-            let summaryText = "New Order Received!\n\n" + (currentEventName ? "Menu: " + currentEventName + "\n" : "") + "Customer: " + custName + "\nMobile: " + custMobile + "\nOrder Type: " + orderType + "\n\nItems:\n";
+            let summaryText = "New Order Received!\n\n" + (currentEventName ? "Menu: " + currentEventName + "\n" : "") + "Customer: " + custName + "\nMobile: " + custMobile + "\nOrder Type: " + orderType + "\n" + locationLabel + ": " + KITCHEN_ADDRESS + "\n\nItems:\n";
 
             menuData.forEach(item => {
                 if (item.qty && item.qty > 0) {
@@ -557,6 +581,8 @@
                         customerName: custName,
                         customerMobile: custMobile,
                         orderType: orderType,
+                        locationLabel: locationLabel,
+                        locationAddress: KITCHEN_ADDRESS,
                         items: receiptItemsList,
                         totalAmount: totalAmount
                     };
@@ -574,7 +600,8 @@
                             ${currentEventName ? `<strong>Menu:</strong> ${currentEventName}<br>` : ''}
                             <strong>Name:</strong> ${custName}<br>
                             <strong>Mobile:</strong> ${custMobile}<br>
-                            <strong>Order Type:</strong> ${orderType}
+                            <strong>Order Type:</strong> ${orderType}<br>
+                            <strong>${locationLabel}:</strong> <a href="${KITCHEN_MAPS_URL}" target="_blank" rel="noopener noreferrer" style="color:#2d6a4f;">${KITCHEN_ADDRESS}</a>
                         </div>
                         <div style="border-top:1px solid #eee; padding-top:8px;">
                             ${receiptItemsHtml}
